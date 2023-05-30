@@ -1,70 +1,226 @@
-#include <iostream>
-#include <string.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+#include "server.hpp"
 
-int main() {
-    int server_sock = socket(AF_INET, SOCK_STREAM, 0); // Crear un socket TCP
-    
-    struct sockaddr_in server_address; // Estructura para almacenar la dirección del servidor
-    memset(&server_address, 0, sizeof(server_address));
-    server_address.sin_family = AF_INET; // Familia de protocolos IPv4
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Dirección IP del servidor
-    server_address.sin_port = htons(8080); // Puerto del servidor
-    
-    // Asignar dirección al socket
-    int bind_result = bind(server_sock, (struct sockaddr*) &server_address, sizeof(server_address));
-    if (bind_result < 0) {
-        std::cout << "Error al asignar dirección al socket" << std::endl;
-        return 1;
-    }
-    
-    // Configurar el socket para aceptar conexiones entrantes
-    int listen_result = listen(server_sock, 5); // 5 conexiones en cola
-    if (listen_result < 0) {
-        std::cout << "Error al configurar el socket para escuchar conexiones entrantes" << std::endl;
-        return 1;
-    }
-    
-    std::cout << "Servidor iniciado en el puerto 8080" << std::endl;
-    
-    while (true) {
-        struct sockaddr_in client_address; // Estructura para almacenar la dirección del cliente
-        socklen_t client_address_length = sizeof(client_address);
-        int client_sock = accept(server_sock, (struct sockaddr*) &client_address, &client_address_length); // Aceptar una conexión entrante
-        if (client_sock < 0) {
-            std::cout << "Error al aceptar conexión entrante" << std::endl;
-            continue;
-        }
-        
-        // Leer la solicitud del cliente
-        char buffer[1024];
-        int buffer_length = sizeof(buffer);
-        int recv_result = recv(client_sock, buffer, buffer_length, 0);
-        if (recv_result < 0) {
-            std::cout << "Error al leer solicitud del cliente" << std::endl;
-            continue;
-        }
-        
-        // Imprimir la solicitud del cliente
-        std::cout << "Solicitud del cliente: " << buffer << std::endl;
-        
-        // Enviar una respuesta al cliente
-        const char* message = "Hola, cliente!";
-        int message_length = strlen(message);
-        int send_result = send(client_sock, message, message_length, 0);
-        if (send_result != message_length) {
-            std::cout << "Error al enviar respuesta al cliente" << std::endl;
-        }
-        
-        // Cerrar el socket del cliente
-        close(client_sock);
-    }
-    
-    // Cerrar el socket del servidor
-    close(server_sock);
-    
-    return 0;
+Server::Server()
+{
 }
+
+Server::~Server()
+{
+}
+
+int Server::createSocket(void)
+{
+	this->serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if(this->serverSocket == -1)
+	{
+		std::cerr << "Error al crear el socket." << std::endl;
+		return(1);
+	}
+	return(0);
+}
+
+void Server::configureSocket(void)
+{
+	std::memset(&(this->serverAddress), 0, sizeof(this->serverAddress));
+	this->serverAddress.sin_family = AF_INET;
+	this->serverAddress.sin_port = htons(8081);
+	this->serverAddress.sin_addr.s_addr = INADDR_ANY;
+}
+
+int Server::linkSocket(void)
+{
+	if(bind(this->serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
+	{
+		std::cerr << "Error al enlazar el socket." << std::endl;
+		close(this->serverSocket);
+		return(1);
+	}
+	return(0);
+}
+
+int Server::listenSocket(void)
+{
+	if(listen(this->serverSocket, 10) == -1)
+	{
+		std::cerr << "Error al escuchar el socket." << std::endl;
+		close(this->serverSocket);
+		return(1);
+	}
+	std::cout << "Esperando conexiones entrantes..." << std::endl;
+	return(0);
+}
+
+void Server::createFileDescriptors(void)
+{
+	FD_ZERO(&this->allSockets);
+	FD_SET(this->serverSocket, &this->allSockets);
+	this->maxDescriptor = this->serverSocket;
+}
+
+int Server::callSelect(void)
+{
+	this->activity = select(this->maxDescriptor + 1, &this->readSockets, NULL, NULL, NULL);
+	if(this->activity == -1)
+	{
+		std::cerr << "Error en select." << std::endl;
+		close(serverSocket);
+		return(1);
+	}
+	return(0);
+}
+
+int Server::checkActivity(void)
+{
+	if(FD_ISSET(this->serverSocket, &this->readSockets))
+	{
+		std::memset(&(this->clientAddress), 0, sizeof(this->clientAddress));
+		this->clientAddressLength = sizeof(this->clientAddress);
+		this->clientSocket = accept(this->serverSocket, (struct sockaddr*)&this->clientAddress, &this->clientAddressLength);
+		if(this->clientSocket == -1)
+		{
+			std::cerr << "Error al aceptar la conexion." << std::endl;
+			close(this->serverSocket);
+			return(1);
+		}
+		std::cout << "Se ha establecido una nueva conexion" << std::endl;
+		handleFileDescriptors();
+	}
+	return(0);
+
+}
+
+void Server::handleFileDescriptors(void)
+{
+	FD_SET(this->clientSocket, &this->allSockets);
+	if(this->clientSocket > this->maxDescriptor)
+		this->maxDescriptor = this->clientSocket;
+	this->clientSockets.push_back(clientSocket);
+}
+
+void Server::writeData(void)
+{
+	std::cout << "Datos recibidos del cliente:" << std::endl;
+	std::cout.write(this->buffer, bytesRead);
+	std::cout << std::endl;
+}
+
+void Server::checkClients(void)
+{
+	for(std::vector<int>::iterator it = this->clientSockets.begin(); it != this->clientSockets.end(); )
+	{
+		this->clientSocket = *it;
+		if(FD_ISSET(this->clientSocket, &this->readSockets))
+		{
+			
+			this->bytesRead = recv(this->clientSocket, this->buffer, sizeof(this->buffer), 0);
+
+			if(this->bytesRead == -1)
+			{
+				std::cerr << "Error al leer los datos del cliente." << std::endl;
+				close(this->clientSocket);
+				it = this->clientSockets.erase(it);
+				continue;
+			}
+
+			if(this->bytesRead == 0)
+			{
+				std::cout << "Conexion cerrada por el cliente." << std::endl;
+				close(this->clientSocket);
+				it = this->clientSockets.erase(it);
+				continue;
+			}
+
+			writeData();
+			std::string request(this->buffer, this->bytesRead);
+			if(request.find("Content-Disposition: form-data;") != std::string::npos)
+			{
+				std::cout << "Intento de subir un archivo detectado." << std::endl;
+				continue;
+			}
+
+			const char* response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World!";
+			this->bytesSent = send(this->clientSocket, response, strlen(response), 0);
+			if(this->bytesSent == -1)
+			{
+				std::cerr << "Error al enviar la respuesta al cliente." << std::endl;
+				close(this->clientSocket);
+				it = this->clientSockets.erase(it);
+				continue;
+			}
+		}
+		++it;
+	}
+}
+
+
+
+
+
+
+int Server::run(void)
+{
+	while(true)
+	{
+		this->readSockets = this->allSockets;
+		if(callSelect())
+			return(1);
+		if(checkActivity())
+			return(1);
+		checkClients();
+	}
+	std::vector<int>::iterator it;
+	for(it = this->clientSockets.begin(); it != clientSockets.end(); ++it)
+	{
+		this->clientSocket = *it;
+		close(this->clientSocket);
+	}
+	close (this->serverSocket);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
