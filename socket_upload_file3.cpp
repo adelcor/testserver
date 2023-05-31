@@ -1,10 +1,10 @@
 #include <iostream>
+#include <fstream>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <fstream>
+
 
 #define PORT 8080
 #define BUFFER_SIZE 4096
@@ -14,7 +14,7 @@ int main() {
     struct sockaddr_in serverAddress, clientAddress;
     socklen_t clientAddressLength = sizeof(clientAddress);
     char buffer[BUFFER_SIZE];
-    char buffer_3[BUFFER_SIZE];
+	char buffer2[BUFFER_SIZE];
 
     // Crear el socket del servidor
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -52,22 +52,7 @@ int main() {
 
         std::cout << "Cliente conectado: " << inet_ntoa(clientAddress.sin_addr) << std::endl;
 
-
-        // Recibir metadatos del archivo
-        int bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0);
-        if (bytesReceived < 0) {
-            std::cerr << "Error al recibir los metadatos del archivo" << std::endl;
-            close(clientSocket);
-            continue;
-        }
-
-	std::cout.write(buffer, bytesReceived);
-	std::cout << std::endl;
-
-        // Obtener el tamaño del archivo
-        std::streampos fileSize = *(reinterpret_cast<std::streampos*>(buffer));
-
-        // Abrir el archivo para escritura
+        // Recibir el archivo enviado por el cliente
         std::ofstream file("archivo_recibido.txt", std::ios::binary);
         if (!file) {
             std::cerr << "Error al abrir el archivo para escritura" << std::endl;
@@ -75,15 +60,9 @@ int main() {
             continue;
         }
 
-        // Recibir y guardar el contenido del archivo
-        while (fileSize > 0) {
-            bytesReceived = recv(clientSocket, buffer_3, BUFFER_SIZE, 0);
-            if (bytesReceived < 0) {
-                std::cerr << "Error al recibir el contenido del archivo" << std::endl;
-                break;
-            }
-            file.write(buffer_3, bytesReceived);
-            fileSize -= bytesReceived;
+        ssize_t bytesRead;
+        while ((bytesRead = recv(clientSocket, buffer2, BUFFER_SIZE, 0)) > 0) {
+            file.write(buffer2, bytesRead);
         }
 
         file.close();

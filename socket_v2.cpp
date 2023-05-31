@@ -19,7 +19,8 @@ int main() {
     }
 
     // Configurar la dirección y el puerto para enlazar el socket
-    sockaddr_in serverAddress{};
+    sockaddr_in serverAddress;
+	memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(8080);  // Puerto 8080
     serverAddress.sin_addr.s_addr = INADDR_ANY;
@@ -64,7 +65,8 @@ int main() {
         // Verificar si hay actividad en el socket del servidor
         if (FD_ISSET(serverSocket, &readSockets)) {
             // Aceptar una nueva conexión
-            sockaddr_in clientAddress{};
+            sockaddr_in clientAddress;
+			memset(&serverAddress, 0, sizeof(serverAddress));
             socklen_t clientAddressLength = sizeof(clientAddress);
             int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientAddressLength);
             if (clientSocket == -1) {
