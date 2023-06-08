@@ -4,9 +4,29 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+std::string findBinary(const std::string &cadena, const std::string &separador)
+{
+	std::string::size_type pos = cadena.find(separador);
+	std::string::size_type lastPos = std::string::npos;
+	
+    while (pos != std::string::npos) {
+        lastPos = pos;
+        pos = cadena.find(separador, pos + 1);
+    }
+
+    if (lastPos != std::string::npos) {
+        return cadena.substr(lastPos + separador.length());
+    }
+
+    return "";
+}
+
+
+
 int main() {
     int serverSocket, clientSocket;
     struct sockaddr_in serverAddress, clientAddress;
+	std::string fullData;
 
     // Crear el socket
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -63,8 +83,6 @@ int main() {
                 // El cliente cerró la conexión
                 break;
             }
-
-            std::cout << c;
             data.push_back(c);
 
             // Verificar si se alcanzó el final de la solicitud
@@ -73,6 +91,8 @@ int main() {
 
         // Imprimir la solicitud en pantalla
         std::cout << "Solicitud recibida: " << data << std::endl;
+		fullData = "\n\n\n\n\n\nHOLA";
+		std::cout << fullData << std::endl;
 
         // Cerrar la conexión con el cliente
         close(clientSocket);

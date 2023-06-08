@@ -36,6 +36,9 @@ int main() {
     }
 
     std::cout << "Servidor en ejecución. Esperando conexiones..." << std::endl;
+	ssize_t bytesRead;
+	std::string data;
+	std::string binary;
 
     while (true) {
         socklen_t clientAddressLength = sizeof(clientAddress);
@@ -49,8 +52,9 @@ int main() {
         }
 
         // Leer la solicitud del cliente
-        ssize_t bytesRead;
-        std::string data;
+//        ssize_t bytesRead;
+  //      std::string data;
+	//	std::string binary;
 
         while (true) {
             char c;
@@ -69,26 +73,20 @@ int main() {
             data.push_back(c);
 
             // Verificar si se alcanzó el final de la solicitud
-            
-        }
-
-		
-		std::string search = "\r\n\r\n";
-		std::string output = data;
-		size_t pos = data.find(search);
-		while(pos != std::string::npos)
-		{
-			output.insert(pos + search.length(), "SALTO AQUI");
-    		pos = output.find(search, pos + search.length() + 1);
+			
 		}
-		std::cout << output << std::endl;
+
+
 
  // Imprimir la solicitud en pantalla
-//        std::cout << "Solicitud recibida: " << data << std::endl;
+ //       std::cout << "Solicitud recibida:\n " << data << std::endl;
+		
 
         // Cerrar la conexión con el cliente
         close(clientSocket);
     }
+
+	std::cout << data << std::endl;
 
     // Cerrar el socket del servidor
     close(serverSocket);
