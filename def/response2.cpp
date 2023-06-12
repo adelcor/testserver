@@ -33,9 +33,9 @@ std::string cut(const std::string& cadena, const std::string& separador) {
 int main() {
     // Crear el socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-	std::string data;
-	std::string binary;
-	std::string temp;
+    std::string data;
+    std::string binary;
+    std::string temp;
     if (serverSocket < 0) {
         std::cerr << "Error al crear el socket" << std::endl;
         return 1;
@@ -43,7 +43,7 @@ int main() {
     
     // Configurar la dirección del servidor
     struct sockaddr_in serverAddress;
-	memset(&serverAddress, 0, sizeof(serverAddress));
+    memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     serverAddress.sin_port = htons(8080); // Puerto 8080
@@ -61,7 +61,7 @@ int main() {
         close(serverSocket);
         return 1;
     }
-	int clientSocket;
+    int clientSocket;
     
     std::cout << "Servidor a la escucha en el puerto 8080..." << std::endl;
     
@@ -73,27 +73,43 @@ int main() {
         return 1;
     }
     
-    // Leer y mostrar las peticiones recibidas
+    // Leer los primeros datos de la solicitud
     char c;
     ssize_t bytesRead;
-	int i = 0;
+    int foundCount = 0;
     while ((bytesRead = recv(clientSocket, &c, 1, 0)) > 0) {
-		
         data.push_back(c);
-	}
-	std::cout << data << std::endl;
-
-	binary = findBinary(data,"\r\n\r\n");
-	
-//	std::cout << binary << std::endl;
-
-	std::ofstream outputFile("archivo.jpg", std::ios::binary);
-	outputFile.write(binary.data(), binary.size());
-	outputFile.close();
-	
+//	foundCount++;
+//	if(foundCount > 1000000)
+//		break;
+        
+        // Verificar si se ha encontrado la cadena "\r\n\r\n"
+        if (data.find("\r\n\r\n") != std::string::npos) {
+            foundCount++;
+            
+            // Detener el bucle después de la segunda ocurrencia
+            if (foundCount == 3) {
+                break;
+            }
+        }
+    }
+    
+    std::cout << data << std::endl;
+    
+    binary = findBinary(data, "\r\n\r\n");
+    
+    std::cout << binary << std::endl;
+    
+    std::ofstream outputFile("archivo.jpg", std::ios::binary);
+    outputFile.write(binary.data(), binary.size());
+    outputFile.close();
+    
+    // Enviar una respuesta al cliente
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello, client";
+    send(clientSocket, response.c_str(), response.size(), 0);
+    
     // Cerrar los sockets
     close(clientSocket);
-	
     close(serverSocket);
     
     return 0;

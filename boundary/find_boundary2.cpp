@@ -33,9 +33,9 @@ std::string cut(const std::string& cadena, const std::string& separador) {
 int main() {
     // Crear el socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-	std::string data;
-	std::string binary;
-	std::string temp;
+    std::string data;
+    std::string binary;
+    std::string temp;
     if (serverSocket < 0) {
         std::cerr << "Error al crear el socket" << std::endl;
         return 1;
@@ -43,7 +43,7 @@ int main() {
     
     // Configurar la dirección del servidor
     struct sockaddr_in serverAddress;
-	memset(&serverAddress, 0, sizeof(serverAddress));
+    memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     serverAddress.sin_port = htons(8080); // Puerto 8080
@@ -61,7 +61,7 @@ int main() {
         close(serverSocket);
         return 1;
     }
-	int clientSocket;
+    int clientSocket;
     
     std::cout << "Servidor a la escucha en el puerto 8080..." << std::endl;
     
@@ -76,24 +76,43 @@ int main() {
     // Leer y mostrar las peticiones recibidas
     char c;
     ssize_t bytesRead;
-	int i = 0;
+    int i = 0;
     while ((bytesRead = recv(clientSocket, &c, 1, 0)) > 0) {
-		
         data.push_back(c);
-	}
-	std::cout << data << std::endl;
+    }
+    std::cout << data << std::endl;
 
-	binary = findBinary(data,"\r\n\r\n");
-	
-//	std::cout << binary << std::endl;
+    binary = findBinary(data, "\r\n\r\n");
 
-	std::ofstream outputFile("archivo.jpg", std::ios::binary);
-	outputFile.write(binary.data(), binary.size());
-	outputFile.close();
-	
+    // Extraer el valor de "boundary" de los encabezados
+    std::string boundary;
+    std::size_t boundaryPos = data.find("boundary=");
+    if (boundaryPos != std::string::npos) {
+        std::size_t startPos = boundaryPos + 9;
+        std::size_t endPos = data.find("\r\n", startPos);
+        if (endPos != std::string::npos) {
+            boundary = data.substr(startPos, endPos - startPos);
+        }
+    }
+
+    std::cout << "Valor de boundary: " << boundary << std::endl;
+
+    // Buscar la posición inicial y final del contenido del archivo en los datos recibidos
+    std::size_t contentPos = data.find("\r\n\r\n") + 4;
+    std::size_t contentEndPos = data.find(boundary, contentPos);
+    if (contentPos != std::string::npos && contentEndPos != std::string::npos) {
+        std::string fileContent = data.substr(contentPos, contentEndPos - contentPos);
+        std::cout << "Contenido del archivo: " << fileContent << std::endl;
+    } else {
+        std::cerr << "No se encontró el contenido del archivo" << std::endl;
+    }
+
+    std::ofstream outputFile("archivo.jpg", std::ios::binary);
+    outputFile.write(binary.data(), binary.size());
+    outputFile.close();
+    
     // Cerrar los sockets
     close(clientSocket);
-	
     close(serverSocket);
     
     return 0;

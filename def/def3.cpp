@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fstream>
+#include <cstring>
 
 std::string findBinary(const std::string& cadena, const std::string& separador) {
     std::string::size_type pos = cadena.find(separador);
