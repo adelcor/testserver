@@ -34,11 +34,19 @@ std::string generateResponse(const std::string& request) {
     std::string response;
 
     if (request.find("GET") == 0) {
-        response = "HTTP/1.1 200 OK\r\n";
-        response += "Content-Type: text/plain\r\n";
-        response += "Content-Length: 23\r\n";
-        response += "\r\n";
-        response += "Peticion GET procesada!";
+        if (request.find("favicon.ico") != std::string::npos) {
+            response = "HTTP/1.1 404 Not Found\r\n";
+            response += "Content-Type: text/plain\r\n";
+            response += "Content-Length: 9\r\n";
+            response += "\r\n";
+            response += "Not Found";
+        } else {
+            response = "HTTP/1.1 200 OK\r\n";
+            response += "Content-Type: text/plain\r\n";
+            response += "Content-Length: 23\r\n";
+            response += "\r\n";
+            response += "Peticion GET procesada!";
+        }
     } else if (request.find("POST") == 0) {
         response = "HTTP/1.1 200 OK\r\n";
         response += "Content-Type: text/plain\r\n";
@@ -61,7 +69,7 @@ int main() {
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     std::string data;
     std::string binary;
-    std::string temp;
+
     if (serverSocket < 0) {
         std::cerr << "Error al crear el socket" << std::endl;
         return 1;
@@ -132,23 +140,19 @@ int main() {
             }
         }
 
+        std::string dataresponse = data;
         std::cout << "Solicitud recibida:" << std::endl;
         std::cout << data << std::endl;
-
-
 
         // Extraer el contenido binario de la solicitud
         binary = findBinary(data, "\r\n\r\n");
 
-//        std::cout << "Contenido binario:" << std::endl;
-//        std::cout << binary << std::endl;
-
-        std::ofstream outputFile("archivo.txt", std::ios::binary);
+        std::ofstream outputFile("archivo.jpg", std::ios::binary);
         outputFile.write(binary.data(), binary.size());
         outputFile.close();
-//	std::string response = generateResponse(data);
-//	send(clientSocket, response.c_str(), response.length(), 0);
 
+        std::string response = generateResponse(dataresponse);
+        send(clientSocket, response.c_str(), response.length(), 0);
 
         // Limpiar los datos y cerrar el socket del cliente
         data.clear();

@@ -59,9 +59,10 @@ std::string generateResponse(const std::string& request) {
 int main() {
     // Crear el socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    std::string data;
+    std::string requestHeader;
+    std::string requestBody;
     std::string binary;
-    std::string temp;
+
     if (serverSocket < 0) {
         std::cerr << "Error al crear el socket" << std::endl;
         return 1;
@@ -110,48 +111,47 @@ int main() {
         std::string contentLengthHeader = "Content-Length: ";
 
         while ((bytesRead = recv(clientSocket, &c, 1, 0)) > 0) {
-            data.push_back(c);
-
             if (!foundEndOfHeaders) {
-                if (data.find(endOfHeaders) != std::string::npos) {
+                requestHeader.push_back(c);
+
+                if (requestHeader.find(endOfHeaders) != std::string::npos) {
                     foundEndOfHeaders = true;
 
                     // Obtener la longitud del contenido del cuerpo de la solicitud
-                    std::size_t contentLengthPos = data.find(contentLengthHeader);
+                    std::size_t contentLengthPos = requestHeader.find(contentLengthHeader);
                     if (contentLengthPos != std::string::npos) {
                         contentLengthPos += contentLengthHeader.length();
-                        std::string contentLengthStr = cut(data.substr(contentLengthPos), "\r\n");
+                        std::string contentLengthStr = cut(requestHeader.substr(contentLengthPos), "\r\n");
                         contentLength = std::stoi(contentLengthStr);
                     }
                 }
+            } else {
+                requestBody.push_back(c);
             }
 
             // Verificar si se ha leído el contenido completo
-            if (foundEndOfHeaders && data.length() - data.find(endOfHeaders) - endOfHeaders.length() >= contentLength) {
+            if (foundEndOfHeaders && requestBody.length() >= contentLength) {
                 break;
             }
         }
 
         std::cout << "Solicitud recibida:" << std::endl;
-        std::cout << data << std::endl;
-
-
+        std::cout << requestHeader << std::endl;
+        std::cout << requestBody << std::endl;
 
         // Extraer el contenido binario de la solicitud
-        binary = findBinary(data, "\r\n\r\n");
+        binary = findBinary(requestBody, "\r\n\r\n");
 
-//        std::cout << "Contenido binario:" << std::endl;
-//        std::cout << binary << std::endl;
-
-        std::ofstream outputFile("archivo.txt", std::ios::binary);
+        std::ofstream outputFile("archivo.jpg", std::ios::binary);
         outputFile.write(binary.data(), binary.size());
         outputFile.close();
-//	std::string response = generateResponse(data);
-//	send(clientSocket, response.c_str(), response.length(), 0);
 
+        std::string response = generateResponse(requestHeader);
+        send(clientSocket, response.c_str(), response.length(), 0);
 
         // Limpiar los datos y cerrar el socket del cliente
-        data.clear();
+        requestHeader.clear();
+        requestBody.clear();
         close(clientSocket);
     }
 

@@ -128,10 +128,14 @@ int main() {
 
             // Verificar si se ha leído el contenido completo
             if (foundEndOfHeaders && data.length() - data.find(endOfHeaders) - endOfHeaders.length() >= contentLength) {
+
+
                 break;
             }
         }
 
+
+	std::string dataresponse = data;
         std::cout << "Solicitud recibida:" << std::endl;
         std::cout << data << std::endl;
 
@@ -146,7 +150,7 @@ int main() {
         std::ofstream outputFile("archivo.jpg", std::ios::binary);
         outputFile.write(binary.data(), binary.size());
         outputFile.close();
-	std::string response = generateResponse(data);
+	std::string response = generateResponse(dataresponse);
 	send(clientSocket, response.c_str(), response.length(), 0);
 
 
