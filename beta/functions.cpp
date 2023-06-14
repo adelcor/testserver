@@ -1,4 +1,10 @@
-#include "server.hpp"
+#include <iostream>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fstream>
+#include <cstring>
 
 std::string cut(const std::string& cadena, const std::string& separador) {
     std::size_t pos = cadena.find(separador);
@@ -8,37 +14,7 @@ std::string cut(const std::string& cadena, const std::string& separador) {
     return cadena;
 }
 
-Server::Server(int port) : port(port), serverSocket(0)
-{
-}
-
-Server::~Server()
-{
-}
-
-
-
-void Server::start() {
-    serverSocket = createServerSocket();
-    bindServerSocket(serverSocket, port);
-
-    if (listen(serverSocket, 1) < 0) {
-        std::cerr << "Error al escuchar en el socket" << std::endl;
-        close(serverSocket);
-        exit(1);
-    }
-
-    std::cout << "Servidor a la escucha en el puerto " << port << "..." << std::endl;
-
-    while (true) {
-        int clientSocket = acceptClientConnection(serverSocket);
-        handleClientRequest(clientSocket);
-    }
-
-    close(serverSocket);
-}
-
-int Server::createServerSocket() {
+int createServerSocket() {
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
         std::cerr << "Error al crear el socket" << std::endl;
@@ -47,7 +23,7 @@ int Server::createServerSocket() {
     return serverSocket;
 }
 
-void Server::bindServerSocket(int serverSocket, int port) {
+void bindServerSocket(int serverSocket, int port) {
     struct sockaddr_in serverAddress;
     memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
@@ -61,7 +37,7 @@ void Server::bindServerSocket(int serverSocket, int port) {
     }
 }
 
-int Server::acceptClientConnection(int serverSocket) {
+int acceptClientConnection(int serverSocket) {
     int clientSocket = accept(serverSocket, nullptr, nullptr);
     if (clientSocket < 0) {
         std::cerr << "Error al aceptar la conexión" << std::endl;
@@ -71,7 +47,7 @@ int Server::acceptClientConnection(int serverSocket) {
     return clientSocket;
 }
 
-std::string Server::receiveData(int clientSocket, int contentLength) {
+std::string receiveData(int clientSocket, int contentLength) {
     std::string data;
     char c;
     ssize_t bytesRead;
@@ -79,16 +55,17 @@ std::string Server::receiveData(int clientSocket, int contentLength) {
 
     while ((bytesRead = recv(clientSocket, &c, 1, 0)) > 0) {
         data.push_back(c);
-        totalBytesRead++;
+        totalBytesRead += bytesRead;
 
-        if (totalBytesRead >= contentLength)
+        if (totalBytesRead >= contentLength) {
             break;
+        }
     }
 
     return data;
 }
 
-std::string Server::extractBoundary(const std::string& data) {
+std::string extractBoundary(const std::string& data) {
     std::string boundary;
     std::size_t boundaryPos = data.find("boundary=");
     if (boundaryPos != std::string::npos) {
@@ -101,7 +78,7 @@ std::string Server::extractBoundary(const std::string& data) {
     return boundary;
 }
 
-bool Server::saveFileContent(const std::string& data, const std::string& boundary) {
+bool saveFileContent(const std::string& data, const std::string& boundary) {
     std::string fileBoundaryStart = "--" + boundary + "\r\n";
     std::string fileBoundaryEnd = "--" + boundary + "--";
     std::size_t fileStartPos = data.find(fileBoundaryStart);
@@ -114,7 +91,7 @@ bool Server::saveFileContent(const std::string& data, const std::string& boundar
             fileContentStartPos += 4;
             fileContent = data.substr(fileContentStartPos, fileEndPos - fileContentStartPos - 2);
 
-            std::ofstream outputFile("archivo_recibido.jpg");
+            std::ofstream outputFile("archivo_recibido.png");
             outputFile << fileContent;
             outputFile.close();
 
@@ -130,7 +107,7 @@ bool Server::saveFileContent(const std::string& data, const std::string& boundar
     return false;
 }
 
-void Server::sendResponse(int clientSocket) {
+void sendResponse(int clientSocket) {
     std::string response = "HTTP/1.1 200 OK\r\n"
                            "Content-Type: text/plain\r\n"
                            "Content-Length: 9\r\n"
@@ -142,22 +119,17 @@ void Server::sendResponse(int clientSocket) {
     }
 }
 
-void Server::handleClientRequest(int clientSocket) {
+void handleClientRequest(int clientSocket) {
     std::string data;
+    char c;
+    ssize_t bytesRead;
     int contentLength = 0;
     bool foundEndOfHeaders = false;
     std::string endOfHeaders = "\r\n\r\n";
     std::string contentLengthHeader = "Content-Length: ";
 
-    while (true) {
-        char c;
-        ssize_t bytesRead = recv(clientSocket, &c, 1, 0);
-        if (bytesRead <= 0) {
-            break;
-        }
-
+    while ((bytesRead = recv(clientSocket, &c, 1, 0)) > 0) {
         data.push_back(c);
-
         if (!foundEndOfHeaders) {
             if (data.find(endOfHeaders) != std::string::npos) {
                 foundEndOfHeaders = true;
@@ -169,7 +141,6 @@ void Server::handleClientRequest(int clientSocket) {
                 }
             }
         }
-
         if (foundEndOfHeaders && data.length() - data.find(endOfHeaders) - endOfHeaders.length() >= contentLength) {
             break;
         }
@@ -180,14 +151,34 @@ void Server::handleClientRequest(int clientSocket) {
     std::string boundary = extractBoundary(data);
     std::cout << "Valor de boundary: " << boundary << std::endl;
 
-    bool fileSaved = saveFileContent(data, boundary);
+    if (!boundary.empty()) {
+        saveFileContent(data, boundary);
+    }
 
     sendResponse(clientSocket);
 
     close(clientSocket);
+}
 
-    if (!fileSaved) {
-        data.clear();
+int main() {
+    int serverSocket = createServerSocket();
+    bindServerSocket(serverSocket, 8080);
+
+    if (listen(serverSocket, 1) < 0) {
+        std::cerr << "Error al escuchar en el socket" << std::endl;
+        close(serverSocket);
+        exit(1);
     }
+
+    std::cout << "Servidor a la escucha en el puerto 8080..." << std::endl;
+
+    while (true) {
+        int clientSocket = acceptClientConnection(serverSocket);
+        handleClientRequest(clientSocket);
+    }
+
+    close(serverSocket);
+
+    return 0;
 }
 

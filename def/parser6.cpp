@@ -9,7 +9,8 @@
 #include <sstream>
 #include <list>
 
-void extractBoundary(const std::string& key, const std::map<std::string, std::list<std::string>>& keyValuePairs, std::string& boundary) {
+void extractBoundary(const std::string& key, const std::map<std::string, std::list<std::string>>& keyValuePairs, std::string& boundary) 
+{
     std::map<std::string, std::list<std::string>>::const_iterator it = keyValuePairs.find(key);
     if (it != keyValuePairs.end()) {
         const std::list<std::string>& values = it->second;
@@ -124,7 +125,8 @@ std::string cut(const std::string& cadena, const std::string& separador) {
     return cadena;
 }
 
-void parseRequest(const std::string& request, std::map<std::string, std::list<std::string> >& keyValuePairs) {
+void parseRequest(const std::string& request, std::map<std::string, std::list<std::string> >& keyValuePairs) 
+{
     std::istringstream iss(request);
     std::string line;
 
