@@ -11,8 +11,8 @@ int main() {
     struct sockaddr_in server_address; // Estructura para almacenar la dirección del servidor
     memset(&server_address, 0, sizeof(server_address));
     server_address.sin_family = AF_INET; // Familia de protocolos IPv4
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Dirección IP del servidor
-    server_address.sin_port = htons(8080); // Puerto del servidor
+    server_address.sin_addr.s_addr = inet_addr("198.0.0.1"); // Dirección IP del servidor
+    server_address.sin_port = htons(8081); // Puerto del servidor
 
     // Asignar dirección al socket
     int bind_result = bind(server_sock, (struct sockaddr*) &server_address, sizeof(server_address));

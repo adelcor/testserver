@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstring>
+#include <arpa/inet.h>
 
 int main() {
     // Crear el socket
@@ -14,10 +15,10 @@ int main() {
     }
 
     // Configurar la dirección y el puerto para enlazar el socket
-    sockaddr_in serverAddress{};
+    sockaddr_in serverAddress={};
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(8081);  // Puerto 8080
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(8081);  // Puerto 8081
+    serverAddress.sin_addr.s_addr = inet_addr("10.14.6.5");
 
     // Enlazar el socket
     if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1) {
@@ -37,7 +38,7 @@ int main() {
 
     while (true) {
         // Aceptar una conexión entrante
-        sockaddr_in clientAddress{};
+        sockaddr_in clientAddress={};
         socklen_t clientAddressLength = sizeof(clientAddress);
         int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientAddressLength);
         if (clientSocket == -1) {
