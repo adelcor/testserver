@@ -6,9 +6,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <cstring>
 
 const int PORT = 8080;
-const std::string WEB_ROOT = "/Users/adel-cor/testserver/static";
+const std::string WEB_ROOT = "/home/tony/testserver/static";
 
 std::string getMimeType(const std::string& filename) {
     if (filename.find(".html") != std::string::npos)

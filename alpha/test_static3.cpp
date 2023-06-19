@@ -14,6 +14,23 @@ std::string cut(const std::string& cadena, const std::string& separador) {
     return cadena;
 }
 
+std::string extractRequestPath(const std::string& data) {
+    std::size_t startPos = data.find("GET ") + 4;
+    std::size_t endPos = data.find(" ", startPos);
+    if (startPos != std::string::npos && endPos != std::string::npos) {
+        return data.substr(startPos, endPos - startPos);
+    }
+    return "";
+}
+
+std::string getFileNameFromPath(const std::string& path) {
+    std::size_t slashPos = path.find_last_of("/");
+    if (slashPos != std::string::npos) {
+        return path.substr(slashPos + 1);
+    }
+    return path;
+}
+
 int createServerSocket() {
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
@@ -80,92 +97,44 @@ std::string extractBoundary(const std::string& data) {
 
 bool saveFileContent(const std::string& data, const std::string& boundary) {
     std::string fileBoundaryStart = "--" + boundary + "\r\n";
-    std::string fileBoundaryEnd = "--" + boundary + "--";
+    std::string fileBoundaryEnd = "\r\n--" + boundary + "--\r\n";
     std::size_t fileStartPos = data.find(fileBoundaryStart);
-    std::size_t fileEndPos = data.find(fileBoundaryEnd, fileStartPos);
+    std::size_t fileEndPos = data.rfind(fileBoundaryEnd);
 
     if (fileStartPos != std::string::npos && fileEndPos != std::string::npos) {
-        std::string fileContent;
-        std::size_t fileContentStartPos = data.find("\r\n\r\n", fileStartPos);
-        if (fileContentStartPos != std::string::npos) {
-            fileContentStartPos += 4;
-            fileContent = data.substr(fileContentStartPos, fileEndPos - fileContentStartPos - 2);
-
-            std::ofstream outputFile("archivo_recibido.png", std::ios::binary);
+        fileStartPos += fileBoundaryStart.length();
+        std::string fileContent = data.substr(fileStartPos, fileEndPos - fileStartPos);
+        
+        std::ofstream outputFile("uploaded_file.txt", std::ios::binary);
+        if (outputFile) {
             outputFile.write(fileContent.c_str(), fileContent.length());
             outputFile.close();
-
-            std::cout << "Contenido del archivo guardado exitosamente." << std::endl;
             return true;
-        } else {
-            std::cerr << "No se pudo encontrar el contenido del archivo." << std::endl;
         }
-    } else {
-        std::cerr << "No se pudo encontrar el archivo en la solicitud." << std::endl;
     }
 
     return false;
 }
 
-std::string loadStaticContent(const std::string& filename) {
-    std::ifstream inputFile(filename, std::ios::binary);
-    if (!inputFile) {
-        std::cerr << "Error al abrir el archivo: " << filename << std::endl;
-        return "";
-    }
+std::string loadStaticContent(const std::string& fileName) {
+    std::ifstream file(fileName, std::ios::binary | std::ios::ate);
+    if (file) {
+        std::ifstream::pos_type fileSize = file.tellg();
+        file.seekg(0, std::ios::beg);
 
-    std::string content((std::istreambuf_iterator<char>(inputFile)), std::istreambuf_iterator<char>());
-    inputFile.close();
-    return content;
-}
+        std::string fileContent(fileSize, ' ');
+        file.read(&fileContent[0], fileSize);
 
-std::string getMimeType(const std::string& filename) {
-    if (filename.find(".html") != std::string::npos) {
-        return "text/html";
-    } else if (filename.find(".jpg") != std::string::npos || filename.find(".jpeg") != std::string::npos) {
-        return "image/jpeg";
-    } else if (filename.find(".png") != std::string::npos) {
-        return "image/png";
-    } else if (filename.find(".txt") != std::string::npos) {
-        return "text/plain";
-    }
-
-    return "application/octet-stream";
-}
-
-std::string getRequestedFilename(const std::string& request) {
-    std::size_t startPos = request.find("GET ") + 4;
-    std::size_t endPos = request.find(" HTTP/1.1");
-    if (endPos != std::string::npos) {
-        return request.substr(startPos, endPos - startPos);
+        file.close();
+        return fileContent;
     }
     return "";
 }
 
-std::string generateResponseHeader(int statusCode, const std::string& contentType, int contentLength) {
-    std::string header;
-    header += "HTTP/1.1 " + std::to_string(statusCode) + " ";
-    switch (statusCode) {
-        case 200:
-            header += "OK\r\n";
-            break;
-        case 404:
-            header += "Not Found\r\n";
-            break;
-        default:
-            header += "\r\n";
-            break;
-    }
-    header += "Content-Type: " + contentType + "\r\n";
-    header += "Content-Length: " + std::to_string(contentLength) + "\r\n";
-    header += "\r\n";
-    return header;
-}
-
 void sendResponse(int clientSocket, const std::string& response) {
     ssize_t bytesSent = send(clientSocket, response.c_str(), response.length(), 0);
-    if (bytesSent != response.length()) {
-        std::cerr << "Error al enviar la respuesta al cliente." << std::endl;
+    if (bytesSent < 0) {
+        std::cerr << "Error al enviar la respuesta" << std::endl;
     }
 }
 
@@ -206,24 +175,29 @@ void handleClientRequest(int clientSocket) {
     }
 
     std::string response;
-    std::string requestedFilename = getRequestedFilename(data);
 
-    if (!requestedFilename.empty()) {
-        std::string fileContent = loadStaticContent(requestedFilename);
+    std::string requestPath = extractRequestPath(data);
+    std::string fileName = getFileNameFromPath(requestPath);
+
+    if (!fileName.empty()) {
+        std::string fileContent = loadStaticContent(fileName);
         if (!fileContent.empty()) {
-            std::string mimeType = getMimeType(requestedFilename);
-            response = generateResponseHeader(200, mimeType, fileContent.length()) + fileContent;
+            response = "HTTP/1.1 200 OK\r\n"
+                       "Content-Type: image/jpeg\r\n"
+                       "Content-Length: " + std::to_string(fileContent.length()) + "\r\n"
+                       "\r\n" + fileContent;
         } else {
-            std::string notFoundContent = loadStaticContent("404.html");
-            if (!notFoundContent.empty()) {
-                response = generateResponseHeader(404, "text/html", notFoundContent.length()) + notFoundContent;
-            } else {
-                response = generateResponseHeader(404, "text/html", 0);
-            }
+            response = "HTTP/1.1 404 Not Found\r\n"
+                       "Content-Type: text/html\r\n"
+                       "Content-Length: 0\r\n"
+                       "\r\n";
         }
     } else {
         std::string staticContent = loadStaticContent("static.html");
-        response = generateResponseHeader(200, "text/html", staticContent.length()) + staticContent;
+        response = "HTTP/1.1 200 OK\r\n"
+                   "Content-Type: text/html\r\n"
+                   "Content-Length: " + std::to_string(staticContent.length()) + "\r\n"
+                   "\r\n" + staticContent;
     }
 
     sendResponse(clientSocket, response);
@@ -234,12 +208,7 @@ void handleClientRequest(int clientSocket) {
 int main() {
     int serverSocket = createServerSocket();
     bindServerSocket(serverSocket, 8080);
-
-    if (listen(serverSocket, 1) < 0) {
-        std::cerr << "Error al escuchar en el socket" << std::endl;
-        close(serverSocket);
-        exit(1);
-    }
+    listen(serverSocket, 5);
 
     std::cout << "Servidor a la escucha en el puerto 8080..." << std::endl;
 
