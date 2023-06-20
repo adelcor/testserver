@@ -179,18 +179,13 @@ void handleClientRequest(int clientSocket) {
     std::string requestPath = extractRequestPath(data);
     std::string fileName = getFileNameFromPath(requestPath);
 
-    std::string staticContent = loadStaticContent("static.html");
-
     if (!fileName.empty()) {
         std::string fileContent = loadStaticContent(fileName);
-        if (!fileContent.empty()) 
-	{
+        if (!fileContent.empty()) {
             response = "HTTP/1.1 200 OK\r\n"
                        "Content-Type: image/jpeg\r\n"
                        "Content-Length: " + std::to_string(fileContent.length()) + "\r\n"
                        "\r\n" + fileContent;
-	    std::string staticContent = loadStaticContent("static.html");
-
         } else {
             response = "HTTP/1.1 404 Not Found\r\n"
                        "Content-Type: text/html\r\n"

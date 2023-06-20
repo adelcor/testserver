@@ -6,29 +6,23 @@
 #include <fstream>
 #include <cstring>
 
+std::string getRequestedFilename(const std::string& requestData) {
+    std::string filename;
+    std::size_t startPos = requestData.find("GET /") + 5;
+    std::size_t endPos = requestData.find(" HTTP/1.1\r\n");
+    if (endPos != std::string::npos) {
+        filename = requestData.substr(startPos, endPos - startPos);
+    }
+    return filename;
+}
+
+
 std::string cut(const std::string& cadena, const std::string& separador) {
     std::size_t pos = cadena.find(separador);
     if (pos != std::string::npos) {
         return cadena.substr(0, pos);
     }
     return cadena;
-}
-
-std::string extractRequestPath(const std::string& data) {
-    std::size_t startPos = data.find("GET ") + 4;
-    std::size_t endPos = data.find(" ", startPos);
-    if (startPos != std::string::npos && endPos != std::string::npos) {
-        return data.substr(startPos, endPos - startPos);
-    }
-    return "";
-}
-
-std::string getFileNameFromPath(const std::string& path) {
-    std::size_t slashPos = path.find_last_of("/");
-    if (slashPos != std::string::npos) {
-        return path.substr(slashPos + 1);
-    }
-    return path;
 }
 
 int createServerSocket() {
@@ -97,44 +91,61 @@ std::string extractBoundary(const std::string& data) {
 
 bool saveFileContent(const std::string& data, const std::string& boundary) {
     std::string fileBoundaryStart = "--" + boundary + "\r\n";
-    std::string fileBoundaryEnd = "\r\n--" + boundary + "--\r\n";
+    std::string fileBoundaryEnd = "--" + boundary + "--";
     std::size_t fileStartPos = data.find(fileBoundaryStart);
-    std::size_t fileEndPos = data.rfind(fileBoundaryEnd);
+    std::size_t fileEndPos = data.find(fileBoundaryEnd, fileStartPos);
 
     if (fileStartPos != std::string::npos && fileEndPos != std::string::npos) {
-        fileStartPos += fileBoundaryStart.length();
-        std::string fileContent = data.substr(fileStartPos, fileEndPos - fileStartPos);
-        
-        std::ofstream outputFile("uploaded_file.txt", std::ios::binary);
-        if (outputFile) {
+        std::string fileContent;
+        std::size_t fileContentStartPos = data.find("\r\n\r\n", fileStartPos);
+        if (fileContentStartPos != std::string::npos) {
+            fileContentStartPos += 4;
+            fileContent = data.substr(fileContentStartPos, fileEndPos - fileContentStartPos - 2);
+
+            std::ofstream outputFile("archivo_recibido.png", std::ios::binary);
             outputFile.write(fileContent.c_str(), fileContent.length());
             outputFile.close();
+
+            std::cout << "Contenido del archivo guardado exitosamente." << std::endl;
             return true;
+        } else {
+            std::cerr << "No se pudo encontrar el contenido del archivo." << std::endl;
         }
+    } else {
+        std::cerr << "No se pudo encontrar el archivo en la solicitud." << std::endl;
     }
 
     return false;
 }
 
-std::string loadStaticContent(const std::string& fileName) {
-    std::ifstream file(fileName, std::ios::binary | std::ios::ate);
-    if (file) {
-        std::ifstream::pos_type fileSize = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        std::string fileContent(fileSize, ' ');
-        file.read(&fileContent[0], fileSize);
-
-        file.close();
-        return fileContent;
+std::string loadStaticContent(const std::string& filename) {
+    std::ifstream inputFile(filename, std::ios::binary);
+    if (!inputFile) {
+        std::cerr << "Error al abrir el archivo: " << filename << std::endl;
+        return "";
     }
-    return "";
+
+    std::string content((std::istreambuf_iterator<char>(inputFile)), std::istreambuf_iterator<char>());
+    inputFile.close();
+    return content;
 }
+
+
+std::string loadStatic(void) {
+     std::ifstream inputFile("static.html", std::ios::binary);
+     if (!inputFile) {
+         std::cerr << "Error al abrir el archivo: " << std::endl;
+         return "";
+     }
+     std::string content((std::istreambuf_iterator<char>(inputFile)), std::istreambuf_iterator<char>());
+     inputFile.close();
+     return content;
+ }
 
 void sendResponse(int clientSocket, const std::string& response) {
     ssize_t bytesSent = send(clientSocket, response.c_str(), response.length(), 0);
-    if (bytesSent < 0) {
-        std::cerr << "Error al enviar la respuesta" << std::endl;
+    if (bytesSent != response.length()) {
+        std::cerr << "Error al enviar la respuesta al cliente." << std::endl;
     }
 }
 
@@ -175,22 +186,16 @@ void handleClientRequest(int clientSocket) {
     }
 
     std::string response;
+    std::string fileName = getRequestedFilename(data);
+    std::cout << "FILENAME ES:" << fileName << std::endl;
 
-    std::string requestPath = extractRequestPath(data);
-    std::string fileName = getFileNameFromPath(requestPath);
-
-    std::string staticContent = loadStaticContent("static.html");
-
-    if (!fileName.empty()) {
+    if (fileName != "static.html" && fileName != " /" && !fileName.empty()) {
         std::string fileContent = loadStaticContent(fileName);
-        if (!fileContent.empty()) 
-	{
+        if (!fileContent.empty()) {
             response = "HTTP/1.1 200 OK\r\n"
                        "Content-Type: image/jpeg\r\n"
                        "Content-Length: " + std::to_string(fileContent.length()) + "\r\n"
                        "\r\n" + fileContent;
-	    std::string staticContent = loadStaticContent("static.html");
-
         } else {
             response = "HTTP/1.1 404 Not Found\r\n"
                        "Content-Type: text/html\r\n"
@@ -198,7 +203,7 @@ void handleClientRequest(int clientSocket) {
                        "\r\n";
         }
     } else {
-        std::string staticContent = loadStaticContent("static.html");
+        std::string staticContent = loadStatic();
         response = "HTTP/1.1 200 OK\r\n"
                    "Content-Type: text/html\r\n"
                    "Content-Length: " + std::to_string(staticContent.length()) + "\r\n"
@@ -213,7 +218,12 @@ void handleClientRequest(int clientSocket) {
 int main() {
     int serverSocket = createServerSocket();
     bindServerSocket(serverSocket, 8080);
-    listen(serverSocket, 5);
+
+    if (listen(serverSocket, 1) < 0) {
+        std::cerr << "Error al escuchar en el socket" << std::endl;
+        close(serverSocket);
+        exit(1);
+    }
 
     std::cout << "Servidor a la escucha en el puerto 8080..." << std::endl;
 
