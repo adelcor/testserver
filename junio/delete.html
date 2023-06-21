@@ -1,0 +1,14 @@
+
+    <button onclick="deleteProfile()" type="submit">Delete</button>
+
+<script>
+document.getElementById("delete").addEventListener("click", (e) => {
+  e.preventDefault();
+  fetch('profile/deleteProfile', {
+
+    method: 'DELETE'
+  }).then(res => alert("Done"));
+});
+</script>
+
+

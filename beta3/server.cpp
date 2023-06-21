@@ -62,7 +62,7 @@ std::string Server::loadStaticContent(const std::string& filename)
 
 std::string Server::loadStatic(void) 
 {
-     std::ifstream inputFile("static.html", std::ios::binary);
+     std::ifstream inputFile("index.html", std::ios::binary);
      if (!inputFile) 
      {
          std::cerr << "Error al abrir el archivo: " << std::endl;
@@ -115,7 +115,7 @@ void Server::bindServerSocket(int serverSocket, int port)
     struct sockaddr_in serverAddress;
     memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");                              //  htonl(INADDR_ANY);
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
     serverAddress.sin_port = htons(port);
 
     if (bind(serverSocket, reinterpret_cast<struct sockaddr*>(&serverAddress), sizeof(serverAddress)) < 0) 
@@ -232,24 +232,23 @@ void Server::handleClientRequest(int clientSocket)
 
     while ((bytesRead = recv(clientSocket, &c, 1, 0)) > 0) 
     {
-        data.push_back(c);
-	if (!foundEndOfHeaders) 
-	{
-            if (data.find(endOfHeaders) != std::string::npos) 
-	    {
-                foundEndOfHeaders = true;
+		data.push_back(c);
+		if (!foundEndOfHeaders) 
+		{
+			if (data.find(endOfHeaders) != std::string::npos) 
+			{
+				foundEndOfHeaders = true;
                 std::size_t contentLengthPos = data.find(contentLengthHeader);
                 if (contentLengthPos != std::string::npos) 
-		{
+				{
                     contentLengthPos += contentLengthHeader.length();
                     std::string contentLengthStr = cut(data.substr(contentLengthPos), "\r\n");
                     contentLength = std::stoi(contentLengthStr);
                 }
             }
         }
-
-        if (foundEndOfHeaders && data.length() - data.find(endOfHeaders) - endOfHeaders.length() >= contentLength) 
-	{
+		if (foundEndOfHeaders && data.length() - data.find(endOfHeaders) - endOfHeaders.length() >= contentLength) 
+		{
             break;
         }
     }
@@ -291,7 +290,7 @@ void  Server::handleGetRequest(int clientSocket, const std::string& requestData)
     std::string response;
     std::string fileName = getRequestedFilename(requestData);
 
-    if (fileName != "static.html" && fileName != " /" && !fileName.empty()) 
+    if (fileName != "index.html" && fileName != " /" && !fileName.empty()) 
     {
         std::string fileContent = loadStaticContent(fileName);
         if (!fileContent.empty()) 

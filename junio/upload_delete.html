@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Formulario de carga de archivos</title>
+</head>
+<body>
+    <h1>Formulario de carga de archivos</h1>
+    <form action="http://localhost:8080" method="POST" enctype="multipart/form-data">
+        <label for="file">Seleccione un archivo:</label>
+        <input type="file" name="file" id="file" required>
+        <br>
+        <input type="submit" value="Enviar">
+    </form>
+
+	<button type="button" id="delete">Delete</button>
+	<script>
+document.getElementById("delete").addEventListener("click", (e) => {
+  e.preventDefault();
+  fetch('profile/deleteProfile', {
+    method: 'DELETE'
+  }).then(res => alert("Done"));
+});
+</script>
+</body>
+</html>
+

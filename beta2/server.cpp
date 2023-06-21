@@ -55,7 +55,7 @@ std::string Server::loadStaticContent(const std::string& filename) {
 }
 
 std::string Server::loadStatic(void) {
-     std::ifstream inputFile("static.html", std::ios::binary);
+     std::ifstream inputFile("index.html", std::ios::binary);
      if (!inputFile) {
          std::cerr << "Error al abrir el archivo: " << std::endl;
          return "";
@@ -214,7 +214,7 @@ void Server::handleClientRequest(int clientSocket) {
             break;
         }
     }
-//	std::cout << data << std::endl;
+	std::cout << data << std::endl;
 	std::map<std::string, std::list<std::string> > keyValuePairs;
 	parseRequest(data, keyValuePairs);
 	printValueForKey("Content-Type", keyValuePairs);
