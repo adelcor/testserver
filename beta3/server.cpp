@@ -34,6 +34,19 @@ Server::~Server()
 {
 }
 
+
+std::string Server::getDeletedFilename(const std::string& requestData)
+{
+    std::string filename;
+    std::size_t startPos = requestData.find("DELETE /") + 8;
+    std::size_t endPos = requestData.find(" HTTP/1.1\r\n");
+    if (endPos != std::string::npos)
+    {
+        filename = requestData.substr(startPos, endPos - startPos);
+    }
+    return filename;
+}
+
 std::string Server::getRequestedFilename(const std::string& requestData) 
 {
     std::string filename;
@@ -274,6 +287,31 @@ void Server::handleClientRequest(int clientSocket)
     {
 	    handlePostRequest(clientSocket, data);
     }
+	else if(requestMethod == "DELETE")
+	{
+		std::cout << "----SOLICITUD DELETE-----\n";
+		std::cout << data << std::endl;
+		std::string deleted = getDeletedFilename(data);
+		std::cout << "Deleted es: " << deleted << std::endl;
+		if(remove(deleted.c_str()) != 0)
+				std::cout << "El archivo no pudo ser eliminado\n";
+		else
+			std::cout << "Archivo eliminado correctamente\n";
+		
+		std::string staticContent = loadStatic();
+		std::string resp = "HTTP/1.1 200 OK\r\n"
+				   "Content-Type: text/html\r\n"
+                   "Content-Length: " + std::to_string(staticContent.length()) + "\r\n"
+                   "\r\n" + staticContent;
+		    sendResponse(clientSocket, resp);
+
+	}
+
+
+
+	
+
+	
     else
     {
 	    std::cerr << "Metodo de solicitud no valido." << std::endl;
@@ -289,6 +327,7 @@ void  Server::handleGetRequest(int clientSocket, const std::string& requestData)
 {
     std::string response;
     std::string fileName = getRequestedFilename(requestData);
+	std::cout << "Getted Filename es: " << fileName << std::endl;
 
     if (fileName != "index.html" && fileName != " /" && !fileName.empty()) 
     {

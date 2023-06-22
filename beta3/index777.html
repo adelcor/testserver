@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Formulario de carga de archivos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .form-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-container label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .form-container input[type="file"] {
+            display: block;
+            margin-bottom: 20px;
+        }
+
+        .form-container input[type="submit"] {
+            background-color: #4caf50;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .form-container input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+
+        .form-container .message {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        .form-container .preview {
+            text-align: center;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        .form-container .preview img {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 250px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            position: absolute;
+            animation: bounce 2s infinite alternate;
+        }
+
+        .checkbox-container {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            animation: moveVertical 3s infinite alternate;
+        }
+
+        @keyframes bounce {
+            0% {
+                left: 0;
+            }
+            100% {
+                left: calc(100% - 200px);
+            }
+        }
+
+        @keyframes moveVertical {
+            0% {
+                top: 50%;
+            }
+            100% {
+                top: 30%;
+            }
+        }
+    </style>
+    <script>
+        window.addEventListener("DOMContentLoaded", function () {
+            const fileInput = document.getElementById("file");
+            const submitButton = document.getElementById("submitBtn");
+            const messageContainer = document.getElementById("messageContainer");
+            const previewContainer = document.getElementById("previewContainer");
+            const previewImage = document.getElementById("previewImage");
+            const checkboxContainer = document.getElementById("checkboxContainer");
+
+            fileInput.addEventListener("change", function () {
+                const file = fileInput.files[0];
+                if (file) {
+                    submitButton.disabled = false;
+                    messageContainer.textContent = "Archivo seleccionado: " + file.name;
+
+                    if (file.type.startsWith("image/")) {
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            previewImage.src = e.target.result;
+                            previewContainer.style.display = "block";
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        previewContainer.style.display = "none";
+                    }
+                } else {
+                    submitButton.disabled = true;
+                    messageContainer.textContent = "Ningún archivo seleccionado";
+                    previewContainer.style.display = "none";
+                }
+            });
+
+            // Establecer la imagen de vista previa al iniciar la página
+            previewImage.src = "ninja.jpg";
+            previewContainer.style.display = "block";
+        });
+        
+        function sendDeleteRequest(event) {
+            event.preventDefault();
+            const filename = document.querySelector('input[name="filename"]').value;
+            fetch(filename, {
+                method: 'DELETE',
+            })
+            .then(response => {
+                // Handle response if needed
+            });
+          /*  const h3 = document.createElement('h3');
+            h3.textContent = "Procesando " + filename + " ...";
+            h3.style.color = "green";
+            h3.style.fontSize = "30px";
+            h3.style.borderBottom = "thick solid green";
+            document.querySelector('#deleteForm').style.display = "none";
+            document.querySelector('#deleteContainer').insertAdjacentElement('afterend', h3);*/
+        }
+    </script>
+</head>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<body>
+    <h1>Formulario de carga de archivos</h1>
+    
+    <div class="form-container">
+        <h2>Subir archivo</h2>
+        <form action="" method="POST" enctype="multipart/form-data">
+            <label for="file">Seleccione un archivo:</label>
+            <input type="file" name="file" id="file" required>
+            <input type="submit" value="Enviar" id="submitBtn" disabled>
+        </form>
+        <div id="messageContainer" class="message">Ningún archivo seleccionado</div>
+        <div class="preview">
+            <img id="previewImage" src="ninja.jpg" alt="Vista previa">
+        </div>
+    </div>
+
+    <div class="form-container" id="deleteContainer">
+        <h2>Eliminar Archivo</h2>
+        <form action="" method="POST" enctype="multipart/form-data">
+            <label for="file">Seleccione un archivo:</label>
+            <input type="file" name="file" id="file" required>
+            <button type="submit" onclick="sendDeleteRequest(event)">Eliminar</button>
+        </form>
+    </div>
+
+    <div id="checkboxContainer" class="checkbox-container">
+        <label for="checkbox">Checkbox anidada animada:</label>
+        <input type="checkbox" id="checkbox">
+    </div>
+</body>
+</html>
+

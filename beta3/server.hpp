@@ -36,8 +36,9 @@ private:
 	void 			parseRequest(const std::string& request, std::map<std::string, std::list<std::string> >& keyValuePairs);
 	void			printMap(std::map<std::string, std::list<std::string> > &keyValuePairs);
 	bool 			isASCII(const std::string& str);
-	std::string		getRequestedFilename(const std::string& requestData);
-	std::string		loadStaticContent(const std::string& filename);
+	std::string		getRequestedFilename(const std::string &requestData);
+	std::string		getDeletedFilename(const std::string &requestdata);
+	std::string		loadStaticContent(const std::string &filename);
 	std::string		loadStatic(void);
 	void			handlePostRequest(int clientSocket, const std::string &requestData);
 	void			handleGetRequest(int clientSocket, const std::string &requestData);

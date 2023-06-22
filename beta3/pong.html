@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pong</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="pong" width="800" height="400"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/4.4.3/typescript.min.js"></script>
+    <script>
+        // Definir el juego de Pong en TypeScript
+
+        // Variables para el canvas
+        const canvas = document.getElementById('pong');
+        const context = canvas.getContext('2d');
+
+        // Dimensiones del campo de juego
+        const fieldWidth = canvas.width;
+        const fieldHeight = canvas.height;
+
+        // Estilos de colores
+        const fieldColor = '#009933'; // Color del campo de juego
+        const lineColor = '#FFFFFF'; // Color de las líneas del campo
+        const paddleColor = '#FFFFFF'; // Color de las paletas
+        const ballColor = '#FFFFFF'; // Color de la pelota
+
+        // Dimensiones y posiciones de las paletas
+        const paddleWidth = 10;
+        const paddleHeight = 100;
+        const player1 = {
+            x: 10,
+            y: fieldHeight / 2 - paddleHeight / 2,
+            width: paddleWidth,
+            height: paddleHeight,
+            color: paddleColor,
+            dy: 8 // velocidad de movimiento
+        };
+
+        const player2 = {
+            x: fieldWidth - paddleWidth - 10,
+            y: fieldHeight / 2 - paddleHeight / 2,
+            width: paddleWidth,
+            height: paddleHeight,
+            color: paddleColor,
+            dy: 8 // velocidad de movimiento
+        };
+
+        // Dimensiones y posición de la pelota
+        const ballRadius = 10;
+        const ball = {
+            x: fieldWidth / 2,
+            y: fieldHeight / 2,
+            radius: ballRadius,
+            speed: 4,
+            dx: 4,
+            dy: 4,
+            color: ballColor
+        };
+
+        // Dibujar el campo de juego
+        function drawField() {
+            // Dibujar el campo
+            context.fillStyle = fieldColor;
+            context.fillRect(0, 0, fieldWidth, fieldHeight);
+
+            // Dibujar la línea central
+            context.beginPath();
+            context.strokeStyle = lineColor;
+            context.setLineDash([10, 10]);
+            context.moveTo(fieldWidth / 2, 0);
+            context.lineTo(fieldWidth / 2, fieldHeight);
+            context.lineWidth = 3;
+            context.stroke();
+            context.closePath();
+
+            // Restaurar el estilo de línea predeterminado
+            context.setLineDash([]);
+        }
+
+        // Dibujar la paleta
+        function drawPaddle(x, y, width, height, color) {
+            context.fillStyle = color;
+            context.fillRect(x, y, width, height);
+        }
+
+        // Dibujar la pelota
+        function drawBall(x, y, radius, color) {
+            context.fillStyle = color;
+            context.beginPath();
+            context.arc(x, y, radius, 0, Math.PI * 2, false);
+            context.closePath();
+            context.fill();
+        }
+
+        // Mover las paletas de los jugadores
+        function movePaddles() {
+            document.addEventListener('keydown', function (event) {
+                switch (event.key) {
+                    // Movimiento del jugador 1 (teclas "W" y "S")
+                    case 'w':
+                        player1.y -= player1.dy;
+                        break;
+                    case 's':
+                        player1.y += player1.dy;
+                        break;
+                    // Movimiento del jugador 2 (teclas "ArrowUp" y "ArrowDown")
+                    case 'ArrowUp':
+                        player2.y -= player2.dy;
+                        break;
+                    case 'ArrowDown':
+                        player2.y += player2.dy;
+                        break;
+                }
+            });
+        }
+
+        // Actualizar la posición de la pelota
+        function update() {
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Rebotar la pelota en los bordes verticales
+            if (ball.y + ball.radius > fieldHeight || ball.y - ball.radius < 0) {
+                ball.dy *= -1;
+            }
+
+            // Revisar colisión con las paletas de los jugadores
+            if (
+                ball.y + ball.radius > player1.y &&
+                ball.y - ball.radius < player1.y + player1.height &&
+                ball.dx < 0
+            ) {
+                if (ball.x - ball.radius < player1.x + player1.width) {
+                    ball.dx *= -1;
+                }
+            }
+
+            if (
+                ball.y + ball.radius > player2.y &&
+                ball.y - ball.radius < player2.y + player2.height &&
+                ball.dx > 0
+            ) {
+                if (ball.x + ball.radius > player2.x) {
+                    ball.dx *= -1;
+                }
+            }
+        }
+
+        // Dibujar todo en el canvas
+        function render() {
+            // Limpiar el canvas
+            context.clearRect(0, 0, fieldWidth, fieldHeight);
+
+            // Dibujar el campo de juego
+            drawField();
+
+            // Dibujar la paleta del jugador 1
+            drawPaddle(player1.x, player1.y, player1.width, player1.height, player1.color);
+
+            // Dibujar la paleta del jugador 2
+            drawPaddle(player2.x, player2.y, player2.width, player2.height, player2.color);
+
+            // Dibujar la pelota
+            drawBall(ball.x, ball.y, ball.radius, ball.color);
+        }
+
+        // Función de juego
+        function game() {
+            update();
+            render();
+        }
+
+        // Bucle principal del juego
+        function loop() {
+            game();
+            requestAnimationFrame(loop);
+        }
+
+        // Mover las paletas de los jugadores
+        movePaddles();
+
+        // Iniciar el bucle del juego
+        loop();
+    </script>
+</body>
+</html>
+
