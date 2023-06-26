@@ -1,0 +1,30 @@
+<form class ="btn" action="" method="POST" enctype="multipart/form-data">
+            <input type="file" name="image">
+            <input type="submit" value="Enviar">
+          </form>
+          <form id="deleteForm" method="POST" action="">
+            <input type="hidden" name="_method" value="DELETE">
+            <input type="text" name="filename" placeholder="Nombre del archivo">
+            <button type="submit" onclick="sendDeleteRequest(event)">Eliminar</button>
+          </form>
+          <img src='../img/a.png' alt='other'>
+          <script>
+            function sendDeleteRequest(event)
+            {
+              event.preventDefault(); // Evita que se envíe la solicitud POST predeterminada
+              filename = document.querySelector('input[name="filename"]').value;
+              fetch(filename, {
+                method: 'DELETE',
+              })
+              .then(response => {
+            });
+              h3 = document.createElement('h3');
+              h3.textContent = "Procesando " + filename + " ...";
+              h3.style.color = "green";
+              h3.style.fontSize = "30px";
+              h3.style.borderBottom = "thick solid green";
+              document.querySelector('#deleteForm').style.display = "none";
+              //document.body.insertBefore(h3, document.body);
+              document.querySelector('form').parentNode.insertBefore(h3, document.querySelector('form').nextSibling);
+            }
+          </script>
