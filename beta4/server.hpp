@@ -14,6 +14,11 @@
 #include <cctype>
 
 class Server {
+
+typedef std::map<std::string, std::list<std::string> > KeyValueMap;
+typedef KeyValueMap::const_iterator MapIterator;
+typedef std::list<std::string>::const_iterator ListIterator;
+
 public:
     explicit Server(int port);
     Server();
@@ -21,23 +26,22 @@ public:
     void start();
 
 private:
-    
-    std::map<std::string, std::list<std::string> > keyValuePairs;
-
+	
+	int port;
+    int serverSocket;
+    std::string fileName;
     int 			createServerSocket();
     void 			bindServerSocket(int serverSocket, int port);
     int 			acceptClientConnection(int serverSocket);
-    std::string 	receiveData(int clientSocket, int contentLength);
     std::string 	extractBoundary(const std::string& data);
     bool 			saveFileContent(const std::string& data, const std::string& boundary);
     void 			sendResponse(int clientSocket, const std::string &response);
     void 			handleClientRequest(int clientSocket);
-	void 			extractBoundary(const std::string &key, const std::map<std::string, std::list<std::string> > &keyValuePairs, std::string& boundary);
-	void 			extractValues(const std::string &key, const std::map<std::string, std::list<std::string> > &keyValuePairs, std::string& value);
-	void 			extractFilename(const std::string& key, const std::map<std::string, std::list<std::string> >& keyValuePairs);
-	void 			printValueForKey(const std::string& key, const std::map<std::string, std::list<std::string> >& keyValuePairs);
-	void 			parseRequest(const std::string& request, std::map<std::string, std::list<std::string> >& keyValuePairs);
-	void			printMap(std::map<std::string, std::list<std::string> > &keyValuePairs);
+	void 			extractValues(const std::string &key, const KeyValueMap &keyValuePairs, std::string& value);
+	void 			extractFilename(const std::string& key, const KeyValueMap &keyValuePairs);
+	void 			printValueForKey(const std::string& key, const KeyValueMap &keyValuePairs);
+	void 			parseRequest(const std::string& request, KeyValueMap &keyValuePairs);
+	void			printMap(KeyValueMap &keyValuePairs);
 	bool 			isASCII(const std::string& str);
 	std::string		getRequestedFilename(const std::string &requestData);
 	std::string		getDeletedFilename(const std::string &requestdata);
@@ -45,13 +49,8 @@ private:
 	std::string		loadStatic(void);
 	void			handlePostRequest(int clientSocket, const std::string &requestData);
 	void			handleGetRequest(int clientSocket, const std::string &requestData);
+	void			handleDeleteRequest(int clientSocket, const std::string &requestData);
 
-
-
-    int port;
-    int serverSocket;
-    std::string fileName;
-    
 };
 
 #endif
