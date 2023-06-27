@@ -1,0 +1,11 @@
+Performing a replace request
+PATCH DIRECTORY /Users/adel-cor/Desktop/TorBrowser-Data/UpdateInfo/Users/adel-cor/Desktop/Tor Browser/updates/0
+INSTALLATION DIRECTORY /Users/adel-cor/Desktop/Tor Browser.app
+WORKING DIRECTORY /Users/adel-cor/Desktop/TorBrowser-Data/UpdateInfo/Users/adel-cor/Desktop/Tor Browser/updates/0/Updated.app
+Begin moving destDir (/Users/adel-cor/Desktop/Tor Browser.app/Contents) to tmpDir (/Users/adel-cor/Desktop/Tor Browser.app/Contents.bak)
+rename_file: proceeding to rename the directory
+Begin moving newDir (/Users/adel-cor/Desktop/TorBrowser-Data/UpdateInfo/Users/adel-cor/Desktop/Tor Browser/updates/0/Updated.app/Contents) to destDir (/Users/adel-cor/Desktop/Tor Browser.app/Contents)
+rename_file: proceeding to rename the directory
+Now, remove the tmpDir
+succeeded
+calling QuitProgressUI
