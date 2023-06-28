@@ -1,5 +1,60 @@
 #include "server.hpp"
 
+std::string parseChunkedRequest(const char* request) {
+  std::string data;
+
+  // Skip the request headers
+  const char* start = strstr(request, "\r\n\r\n");
+  if (start == NULL) {
+    return data; // Invalid request
+  }
+  start += 4;
+
+  // Process each chunk
+  while (true) {
+    char* endPtr;
+    unsigned long chunkSize = strtoul(start, &endPtr, 16);
+    if (chunkSize == 0) {
+      break; // Last chunk
+    }
+
+    start = endPtr + 2; // Skip chunk size and CRLF
+
+    // Append chunk data to the result
+    data.append(start, chunkSize);
+
+    start += chunkSize + 2; // Skip chunk data and CRLF
+  }
+
+  return data;
+}
+
+
+void saveFile(const std::string& filename, const std::string& content) {
+  std::ofstream file(filename.c_str(), std::ios::out | std::ios::binary);
+  if (file) {
+    file.write(content.data(), content.size());
+    file.close();
+    std::cout << "File saved: " << filename << std::endl;
+  } else {
+    std::cerr << "Error saving file: " << filename << std::endl;
+  }
+}
+
+
+std::string removeCarriageReturn(const std::string& value)
+{
+    std::string trimmedValue;
+    for (char c : value)
+    {
+        if (c != '\r')
+        {
+            trimmedValue += c;
+        }
+    }
+    return trimmedValue;
+}
+
 std::string cut(const std::string& cadena, const std::string& separador) 
 {
     std::size_t pos = cadena.find(separador);
@@ -245,13 +300,22 @@ void Server::handleClientRequest(int clientSocket)
 			break;
         }
 	}
-//	std::cout << data << std::endl;
+	std::cout << data << std::endl;
 	std::string requestMethod = cut(data, " ");
 	KeyValueMap keyValuePairs;
 	parseRequest(data, keyValuePairs);
-	printValueForKey("Content-Type", keyValuePairs);
+//	printValueForKey("Content-Type", keyValuePairs);
+
+
+//	printValueForKey("Transfer-Encoding", keyValuePairs);	
+
+
 	extractFilename("Content-Disposition", keyValuePairs);
+
+	std::cout << "------------------------------------\n";
+	std::cout << "----------MAP-----------------------\n";
 	printMap(keyValuePairs);
+	std::cout << "------------------------------------\n";
 	
 	if(requestMethod == "GET")
     {
@@ -259,7 +323,7 @@ void Server::handleClientRequest(int clientSocket)
     }
     else if(requestMethod == "POST")
     {
-	    handlePostRequest(clientSocket, data);
+	    handlePostRequest(clientSocket, data, keyValuePairs);
     }
 	else if(requestMethod == "DELETE")
 	{
@@ -298,7 +362,6 @@ void  Server::handleGetRequest(int clientSocket, const std::string& requestData)
 {
     std::string response;
     std::string fileName = getRequestedFilename(requestData);
-	std::cout << "Getted Filename es: " << fileName << std::endl;
 
     if (fileName != "index.html" && fileName != " /" && !fileName.empty()) 
 	{
@@ -332,10 +395,58 @@ void  Server::handleGetRequest(int clientSocket, const std::string& requestData)
 	sendResponse(clientSocket, response);
 }
 
-void Server::handlePostRequest(int clientSocket, const std::string& requestData) 
+void Server::handleChunked(int clientSocket, const std::string &requestData, const KeyValueMap &keyValuePairs)
 {
+	int bytesRead;
+	std::string data = requestData;
+	char buffer[1024];
+	std::cout << "ESTOY AQUI\n";
+	if(requestData.find("Expect: 100-continue") != std::string::npos)
+		std::cout << "RESPUESTA CONTINUE ENVIADA\n";
+	
+	const char* continueResponse = "100 Continue\r\n\r\n";
+	ssize_t bytesSent = send(clientSocket, continueResponse, strlen(continueResponse), 0);
+	if (bytesSent < 0)
+	{
+		std::cerr << "Error writing to socket." << std::endl;
+		close(clientSocket);
+	
+	}
+
+	while(true)
+	{
+		memset(buffer, 0, sizeof(buffer));
+		bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+		if (bytesRead <= 0) 
+		{
+			break; // Error or end of request
+		}
+		data.append(buffer, bytesRead);
+	}
+	std::cout << "data despues de la respuesta\n";
+	std::cout << data << std::endl;
+	std::string requestBody = parseChunkedRequest(data.c_str());
+	std::cout << "Received data:\n" << requestBody << std::endl;
+	std::cout << "filename es \n";
+	std::cout << this->fileName << std::endl;
+	saveFile(this->fileName, requestBody);
+
+
+
+
+
+}
+
+
+void Server::handlePostRequest(int clientSocket, const std::string& requestData, const KeyValueMap &keyValuePairs) 
+{
+	if(isInMap("Transfer-Encoding", "chunked\r", keyValuePairs))
+	{
+		std::cout << "PUES VA A SER QUE ES UNA PETICION CHUNKED\n";
+		handleChunked(clientSocket, requestData, keyValuePairs);
+	}
+
 	std::string boundary = extractBoundary(requestData);
-	std::cout << "Valor de boundary: " << boundary << std::endl;
 	
 	if (!boundary.empty()) 
 	{
@@ -436,6 +547,32 @@ void Server::printValueForKey(const std::string& key, const KeyValueMap &keyValu
     }
 }
 
+
+
+bool Server::isInMap(const std::string& key, const std::string &value, const KeyValueMap &keyValuePairs)
+{
+	MapIterator it = keyValuePairs.find(key);
+	if (it != keyValuePairs.end())
+	{
+		const std::list<std::string>& values = it->second;
+		ListIterator listIt;
+		for (listIt = values.begin(); listIt != values.end(); ++listIt)
+		{
+			if(*listIt == value)
+				return true;
+			else
+				return false;
+		}
+	}
+	
+	std::cout << "Key not found: " << key << std::endl;
+	
+	return false;
+}
+
+
+
+
 bool Server::isASCII(const std::string& str)
 {
 	for (std::string::const_iterator it = str.begin(); it != str.end(); ++it)
@@ -447,6 +584,8 @@ bool Server::isASCII(const std::string& str)
 	}
 	return true;
 }
+
+
 
 
 void Server::parseRequest(const std::string &request, KeyValueMap &keyValuePairs)

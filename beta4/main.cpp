@@ -2,7 +2,7 @@
 #include "server.cpp"
 
 int main() {
-    Server server(80);
+    Server server(8080);
     server.start();
     
     return 0;

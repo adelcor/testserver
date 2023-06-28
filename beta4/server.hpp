@@ -42,12 +42,15 @@ private:
 	void 			printValueForKey(const std::string& key, const KeyValueMap &keyValuePairs);
 	void 			parseRequest(const std::string& request, KeyValueMap &keyValuePairs);
 	void			printMap(KeyValueMap &keyValuePairs);
+	bool			isInMap(const std::string &key, const std::string &value, const KeyValueMap &keyValuePairs);
 	bool 			isASCII(const std::string& str);
+
 	std::string		getRequestedFilename(const std::string &requestData);
 	std::string		getDeletedFilename(const std::string &requestdata);
 	std::string		loadStaticContent(const std::string &filename);
 	std::string		loadStatic(void);
-	void			handlePostRequest(int clientSocket, const std::string &requestData);
+	void			handlePostRequest(int clientSocket, const std::string &requestData, const KeyValueMap &keyValuePairs);
+	void			handleChunked(int clientSocket, const std::string& requestData, const KeyValueMap &keyValuePairs);
 	void			handleGetRequest(int clientSocket, const std::string &requestData);
 	void			handleDeleteRequest(int clientSocket, const std::string &requestData);
 

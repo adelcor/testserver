@@ -102,7 +102,7 @@ int main() {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, sizeof(buffer));
 
-    // Read client request headers
+    // Read client request
     ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
     if (bytesRead < 0) {
       std::cerr << "Error reading from socket." << std::endl;
@@ -114,13 +114,10 @@ int main() {
 
     // Check if "Expect: 100-continue" header is present
     if (strstr(buffer, "Expect: 100-continue") != NULL) {
-
-		std::cout << "RESPUESTA CONTINUE ENVIADA\n";
       // Send "100 Continue" response
-      const char* continueResponse = "100 Continue\r\n\r\n";
+      const char* continueResponse = "HTTP/1.1 100 Continue\r\n\r\n";
       ssize_t bytesSent = send(clientSocket, continueResponse, strlen(continueResponse), 0);
-      if (bytesSent < 0) 
-      {
+      if (bytesSent < 0) {
         std::cerr << "Error writing to socket." << std::endl;
         close(clientSocket);
         continue;
@@ -156,6 +153,8 @@ int main() {
 
     // Close client connection
     close(clientSocket);
+
+    break; // Exit the loop after processing one request
   }
 
   // Close server socket
