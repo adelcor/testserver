@@ -404,8 +404,15 @@ void Server::handleChunked(int clientSocket, const std::string &requestData, con
 	if(requestData.find("Expect: 100-continue") != std::string::npos)
 		std::cout << "RESPUESTA CONTINUE ENVIADA\n";
 	
-	const char* continueResponse = "100 Continue\r\n\r\n";
-	ssize_t bytesSent = send(clientSocket, continueResponse, strlen(continueResponse), 0);
+//	const char* continueResponse = "100 Continue\r\n\r\n";
+	std::string response =
+        "100 Continue\r\n"
+        "Date: Mon, 27 Jul 2009 12:28:53 GMT\r\n"
+        "Server: Apache/2.2.14 (Win32)\r\n"
+        "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\r\n"
+        "Content-Length: 88\r\n"
+        "Content-Type: text/html\r\n";
+	ssize_t bytesSent = send(clientSocket, response.c_str(), response.length(), 0);
 	if (bytesSent < 0)
 	{
 		std::cerr << "Error writing to socket." << std::endl;
@@ -430,6 +437,9 @@ void Server::handleChunked(int clientSocket, const std::string &requestData, con
 	std::cout << "filename es \n";
 	std::cout << this->fileName << std::endl;
 	saveFile(this->fileName, requestBody);
+
+
+
 
 
 
@@ -460,6 +470,7 @@ void Server::handlePostRequest(int clientSocket, const std::string& requestData,
                            "\r\n" + staticContent;
 	
 	sendResponse(clientSocket, response);
+	
 }
 
 
